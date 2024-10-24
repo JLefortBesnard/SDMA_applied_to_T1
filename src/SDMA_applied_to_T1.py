@@ -8,9 +8,11 @@ from nilearn import plotting
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy
-
+import importlib
 import utils
+from nilearn.datasets import load_mni152_brain_mask
 
+importlib.reload(utils)
 
 # folder to store results
 results_dir = "results"
@@ -27,7 +29,11 @@ masks = []
 print("Computing mask...")
 for unthreshold_map in glob.glob(os.path.join(raw_data_path, "*")):
 	mask = masking.compute_background_mask(unthreshold_map)
-	masks.append(mask)
+	resampled_mask = image.resample_to_img(
+		mask,
+		load_mni152_brain_mask(),
+		interpolation='nearest')
+	masks.append(resampled_mask)
 multiverse_outputs_mask = masking.intersect_masks(masks, threshold=1, connected=False)
 nibabel.save(multiverse_outputs_mask, os.path.join(data_dir, "masking", "multiverse_outputs_mask.nii"))
 
@@ -43,6 +49,7 @@ resampled_maps = {}
 for unthreshold_map in glob.glob(os.path.join(raw_data_path, "*")):
 	name = unthreshold_map.split('/')[-1][:-15]
 	# resample MNI
+
 	resampled_map = image.resample_to_img(
 				unthreshold_map,
 				multiverse_outputs_mask,
@@ -58,24 +65,26 @@ for key in resampled_maps.keys():
 # masking resampled data (to get K*J matrix)
 multiverse_outputs_matrix_p = masker.fit_transform(resampled_maps.values())
 
-Q = numpy.corrcoef(multiverse_outputs_matrix_p)
-names = resampled_maps.keys()
-# Create a heatmap of the correlation matrix
-plt.figure(figsize=(8, 6))
-sns.heatmap(Q, annot=True, cmap='coolwarm', xticklabels=names, yticklabels=names, cbar=True)
-plt.show
 
-# Set titles and labels
-plt.title('Correlation Matrix')
-plt.xlabel('Conditions')
-plt.ylabel('Conditions')
+def plot_corr_matrix(data, names, title):
+	Q = numpy.corrcoef(data)
+	# Create a heatmap of the correlation matrix
+	plt.figure(figsize=(8, 6))
+	sns.heatmap(Q, annot=True, cmap='coolwarm', xticklabels=names, yticklabels=names, cbar=True)
 
-# Show the plot
-plt.tight_layout()
-plt.show()
+	# Set titles and labels
+	plt.title(title)
+	plt.xlabel('Conditions')
+	plt.ylabel('Conditions')
 
+	# Show the plot
+	plt.tight_layout()
+	plt.show()
 
-multiverse_outputs_matrix_Z = utils.p_value_to_z_matrix(multiverse_outputs_matrix_p , tail='two-tailed')
+plot_corr_matrix(multiverse_outputs_matrix_p, resampled_maps.keys(), 'correlation p values')
+
+multiverse_outputs_matrix_Z = utils.p_value_to_z_matrix(multiverse_outputs_matrix_p , tail='one-tailed')
+plot_corr_matrix(multiverse_outputs_matrix_Z, resampled_maps.keys(), 'correlation Z values')
 
 SDMA_Stouffer_outputs = utils.SDMA_Stouffer(multiverse_outputs_matrix_Z)
 SDMA_Stouffer_results = SDMA_Stouffer_outputs[1]

@@ -23,9 +23,9 @@ def p_value_to_z_matrix(p_values, tail='two-tailed'):
     # Ensure the input is a NumPy array
     p_values = numpy.array(p_values)
     if tail == 'two-tailed':
-        z_scores = norm.ppf(1 - p_values / 2)
+        z_scores = norm.sf(p_values / 2)
     elif tail == 'one-tailed':
-        z_scores = norm.ppf(1 - p_values)
+        z_scores = norm.sf(p_values)
     else:
         raise ValueError("Tail must be 'one-tailed' or 'two-tailed'")
     return z_scores
