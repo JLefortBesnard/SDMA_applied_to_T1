@@ -28,23 +28,27 @@ data_dir = "data"
 raw_data_path = os.path.join(data_dir, "multiverse_outputs")
 
 #######
-# store all Z values raw maps for analysis
+# GET PATH OF RAW DATA
 #######
+# store Z value raw maps
 raw_z_value_maps = glob.glob(os.path.join(raw_data_path, "*_Z.nii.gz"))
 raw_z_value_maps.sort()
+# store p value raw maps
 raw_p_value_maps = glob.glob(os.path.join(raw_data_path, "*_p.nii.gz"))
 raw_p_value_maps.sort()
-assert len(raw_z_value_maps) == 3
-assert len(raw_p_value_maps) == 3
+assert len(raw_z_value_maps) == len(raw_p_value_maps) == 3
+
 # check size of maps and visualize maps
 for i in range(1):
 	print(raw_z_value_maps[i])
 	assert nibabel.load(raw_z_value_maps[i]).get_fdata().shape == (91, 109, 91)
 	assert nibabel.load(raw_p_value_maps[i]).get_fdata().shape == (91, 109, 91)
 
+
 #######
-# compute mask using the p value maps (if done with the z value maps, the R masking is different (8 voxels less))
+# COMPUTE MASK
 #######
+# compute mask using the z value maps 
 masks = []
 print("Computing mask...")
 for unthreshold_map in raw_z_value_maps:
@@ -53,24 +57,20 @@ for unthreshold_map in raw_z_value_maps:
 multiverse_outputs_mask = masking.intersect_masks(masks, threshold=1, connected=False)
 nibabel.save(multiverse_outputs_mask, os.path.join(data_dir, "masking", "multiverse_outputs_mask.nii"))
 
-# # check mask computed using python is equivalent to mask computed using R
-# mask_using_R = os.path.join(data_dir, "masking", "Mask_3Proc.nii.gz")
-# assert nibabel.load(mask_using_R).get_fdata().sum() == multiverse_outputs_mask.get_fdata().sum()
-
-# save mask for inverse transform
+# load mask for inverse transform
 masker = NiftiMasker(
     mask_img=multiverse_outputs_mask)
 
 #######
-# masking data with the created mask
+# RESAMPLE RAW DATA WITH MASK
 #######
-
+# masking data with the created mask
 def masking_raw_maps(raw_maps, mask):
 	# computing mask
 	resampled_data_path = os.path.join(data_dir, "mutliverse_outputs_resampled")
 	resampled_maps = {} #storing the resampled maps
 	for unthreshold_map in raw_maps:
-		name = unthreshold_map.split('/')[-1].split('_')[0] + '_resampled_' + unthreshold_map.split('/')[-1].split('_')[2][:-6]
+		name = unthreshold_map.split('/')[-1].split('_')[0] + '_resampled_' + unthreshold_map.split('/')[-1].split('_')[2][:-7]
 		# resample MNI
 		resampled_map = image.resample_to_img(
 					unthreshold_map,
@@ -84,21 +84,20 @@ def masking_raw_maps(raw_maps, mask):
 		nibabel.save(resampled_maps[key], os.path.join(data_dir, "multiverse_outputs_resampled", "{}.nii".format(key)))
 	return resampled_maps
 
-resampled_z_maps = masking_raw_maps(raw_z_value_maps, multiverse_outputs_mask)
-
-
-#######
-# masking resampled data (to get K*J matrix)
-#######
-multiverse_outputs_matrix_z = masker.fit_transform(resampled_z_maps.values())
+masked_z_maps = masking_raw_maps(raw_z_value_maps, multiverse_outputs_mask)
+masked_z_maps_flatten = masker.fit_transform(masked_z_maps.values())
 
 # compute Z into p to check diff with SDMA outputs and 3 inputs significant values:
-multiverse_outputs_matrix_p = scipy.stats.norm.sf(multiverse_outputs_matrix_z)
-multiverse_outputs_matrix_sign_p = multiverse_outputs_matrix_p.copy()
-multiverse_outputs_matrix_sign_p[multiverse_outputs_matrix_sign_p>0.05] = 0
+masked_p_maps_flatten = scipy.stats.norm.sf(masked_z_maps_flatten)
+masked_significant_p_maps_flatten = masked_p_maps_flatten.copy()
+masked_significant_p_maps_flatten[masked_significant_p_maps_flatten>0.05] = 0
+
+CAT12_percentage_significance = len(masked_significant_p_maps_flatten[0][masked_significant_p_maps_flatten[0] != 0]) / len(masked_significant_p_maps_flatten[0])
+FSLVBM_percentage_significance = len(masked_significant_p_maps_flatten[1][masked_significant_p_maps_flatten[1] != 0]) / len(masked_significant_p_maps_flatten[1])
+FSLANAT_percentage_significance = len(masked_significant_p_maps_flatten[2][masked_significant_p_maps_flatten[2] != 0]) / len(masked_significant_p_maps_flatten[2])
 
 #######
-# plot correlation matrix
+# PLOT CORRELATION MATRICES
 #######
 def plot_corr_matrix(data, names, title, saving_path):
 	Q = numpy.corrcoef(data)
@@ -115,71 +114,119 @@ def plot_corr_matrix(data, names, title, saving_path):
 	# Show the plot
 	plt.tight_layout()
 	plt.savefig(saving_path)
-	plt.show()
+	plt.close('all')
 
-plot_corr_matrix(multiverse_outputs_matrix_z, resampled_z_maps.keys(), 'correlation z values', os.path.join(figures_dir, 'correlation_z_values.png'))
+# between Z values per map
+plot_corr_matrix(masked_z_maps_flatten, masked_z_maps.keys(), 'correlation z values', os.path.join(figures_dir, 'correlation_z_values.png'))
+# between p values per mask
+plot_corr_matrix(masked_p_maps_flatten, masked_z_maps.keys(), 'correlation p values', os.path.join(figures_dir, 'correlation_p_values.png'))
 
 #######
-# compute and plot SDMA results
+# COMPUTE SDMA STOUFFER
 #######
 
-output_SDMA_p_from_z = utils.SDMA_Stouffer(multiverse_outputs_matrix_z)[1]
-# turn every p > 0.05 equal to 0
-output_SDMA_p_significant_from_z = output_SDMA_p_from_z.copy()
-output_SDMA_p_significant_from_z[output_SDMA_p_significant_from_z > 0.05] = 0
+SDMA_Stouffer_outputs = utils.SDMA_Stouffer(masked_z_maps_flatten)
+# store results for SDMA Stouffer
+SDMA_Stouffer_Zmap = SDMA_Stouffer_outputs[0]
+SDMA_Stouffer_pmap = SDMA_Stouffer_outputs[1]
+SDMA_Stouffer_significant_pmap = SDMA_Stouffer_pmap.copy()
+SDMA_Stouffer_significant_pmap[SDMA_Stouffer_significant_pmap>0.05] = 0 # non corrected
+SDMA_Stouffer_percentage_significance = len(SDMA_Stouffer_significant_pmap[SDMA_Stouffer_significant_pmap != 0]) / len(SDMA_Stouffer_significant_pmap)
 
-# save as nii
-output_SDMA_p_significant_from_z_nii = masker.inverse_transform(output_SDMA_p_significant_from_z)
-output_SDMA_z_from_z_nii = masker.inverse_transform(utils.SDMA_Stouffer(multiverse_outputs_matrix_z)[0])
-nibabel.save(output_SDMA_z_from_z_nii, os.path.join(results_dir , "output_SDMA_z_from_z_nii.nii"))
-CAT12_sign_p_originals = masker.inverse_transform(multiverse_outputs_matrix_sign_p[0])
-FSLVBM_sign_p_originals = masker.inverse_transform(multiverse_outputs_matrix_sign_p[1])
-FSLANAT_sign_p_originals = masker.inverse_transform(multiverse_outputs_matrix_sign_p[2])
-
-nibabel.save(output_SDMA_p_significant_from_z_nii, os.path.join(results_dir , "SDMA_Stouffer_(z)_p_significant_outputs.nii"))
-nibabel.save(CAT12_sign_p_originals, os.path.join(results_dir , "CAT12_sign_p_originals.nii"))
-nibabel.save(FSLVBM_sign_p_originals, os.path.join(results_dir , "FSLVBM_sign_p_originals.nii"))
-nibabel.save(FSLANAT_sign_p_originals, os.path.join(results_dir , "FSLANAT_sign_p_originals.nii"))
+#save results
+nibabel.save(masker.inverse_transform(SDMA_Stouffer_Zmap), os.path.join(results_dir , "SDMA_Stouffer_Zmap.nii"))
+nibabel.save(masker.inverse_transform(SDMA_Stouffer_pmap), os.path.join(results_dir , "SDMA_Stouffer_pmap.nii"))
+nibabel.save(masker.inverse_transform(SDMA_Stouffer_significant_pmap), os.path.join(results_dir , "SDMA_Stouffer_significant_pmap.nii"))
 
 
-utils.plot_map(CAT12_sign_p_originals, multiverse_outputs_mask, os.path.join(figures_dir , "CAT12_sign_p_originals"))
-utils.plot_map(FSLVBM_sign_p_originals, multiverse_outputs_mask, os.path.join(figures_dir , "FSLVBM_sign_p_originals"))
-utils.plot_map(FSLANAT_sign_p_originals, multiverse_outputs_mask, os.path.join(figures_dir , "FSLANAT_sign_p_originals"))
-utils.plot_map(output_SDMA_p_significant_from_z_nii, multiverse_outputs_mask, os.path.join(figures_dir , "SDMA_Stouffer_p_significant_outputs"))
+#######
+# COMPUTE SDMA GLS
+#######
+SDMA_GLS_outputs = utils.SDMA_GLS(masked_z_maps_flatten)
+# store results for SDMA GLS
+SDMA_GLS_Zmap = SDMA_GLS_outputs[0]
+SDMA_GLS_pmap = SDMA_GLS_outputs[1]
+SDMA_GLS_significant_pmap = SDMA_GLS_pmap.copy()
+SDMA_GLS_significant_pmap[SDMA_GLS_significant_pmap>0.05] = 0 # non corrected
+SDMA_GLS_percentage_significance = len(SDMA_GLS_significant_pmap[SDMA_GLS_significant_pmap != 0]) / len(SDMA_GLS_significant_pmap)
+#save results
+nibabel.save(masker.inverse_transform(SDMA_GLS_Zmap), os.path.join(results_dir , "SDMA_GLS_Zmap.nii"))
+nibabel.save(masker.inverse_transform(SDMA_GLS_pmap), os.path.join(results_dir , "SDMA_GLS_pmap.nii"))
+nibabel.save(masker.inverse_transform(SDMA_GLS_significant_pmap), os.path.join(results_dir , "SDMA_GLS_significant_pmap.nii"))
 
-stop
-map_list = output_SDMA_p_significant_from_z_nii, CAT12_sign_p_originals = masker.inverse_transform(multiverse_outputs_matrix_sign_p[0])
-FSLVBM_sign_p_originals = masker.inverse_transform(multiverse_outputs_matrix_sign_p[1])
-FSLANAT_sign_p_originals = masker.inverse_transform(multiverse_outputs_matrix_sign_p[2])
-# Create a figure for plotting
-fig, axes = plt.subplots(4, 1, figsize=(8, 20))
+#######
+# SAVE ORIGINAL ZVALUE AND PVALUES FOR EACH PIPELINE (to compare with SDMA results)
+#######
+CAT12_significant_p = masker.inverse_transform(masked_significant_p_maps_flatten[0])
+FSLVBM_significant_p = masker.inverse_transform(masked_significant_p_maps_flatten[1])
+FSLANAT_significant_p = masker.inverse_transform(masked_significant_p_maps_flatten[2])
+
+nibabel.save(CAT12_significant_p, os.path.join(results_dir , "CAT12_significant_p.nii"))
+nibabel.save(FSLVBM_significant_p, os.path.join(results_dir , "FSLVBM_significant_p.nii"))
+nibabel.save(FSLANAT_significant_p, os.path.join(results_dir , "FSLANAT_significant_p.nii"))
+
+
+# Define the second map list
+map_list_column_1 = [
+    os.path.join(data_dir, "multiverse_outputs_resampled", "CAT12_resampled_Z.nii"),
+    os.path.join(data_dir, "multiverse_outputs_resampled", "FSLVBM_resampled_Z.nii"),
+    os.path.join(data_dir, "multiverse_outputs_resampled", "FSLANAT_resampled_Z.nii"),
+    masker.inverse_transform(SDMA_Stouffer_Zmap),
+    masker.inverse_transform(SDMA_GLS_Zmap)
+]
+
+map_list_column_2 = [
+    CAT12_significant_p,
+    FSLVBM_significant_p,
+    FSLANAT_significant_p,
+    masker.inverse_transform(SDMA_Stouffer_significant_pmap),
+    masker.inverse_transform(SDMA_GLS_significant_pmap)
+]
+map_names = ["CAT12", "FSLVBM", "FSLANAT", "SDMA Stouffer", "SDMA GLS"]
+perc_sign_list = [CAT12_percentage_significance*100, FSLVBM_percentage_significance*100, FSLANAT_percentage_significance*100, SDMA_Stouffer_percentage_significance*100, SDMA_GLS_percentage_significance*100]
+
+
+# Create a figure for plotting with 5 rows and 2 columns
+fig, axes = plt.subplots(5, 2, figsize=(12, 15))
 # Loop through each map and plot
-for i, map_path in enumerate(map_paths):
-    # Load each map
-    map_img = nib.load(map_path)
-    
-    # Plot the stat map in the respective row
+for i in range(len(map_list_column_1)):
+    # Plot the first column map
     plotting.plot_stat_map(
-        map_img,
+        map_list_column_1[i],
         annotate=False,
-        bg_img=bg_mask,
+        bg_img=None,  # Set background to None for a white background
+        vmin=0.00000000000001,
+        vmax=5,
+        cut_coords=(-34, -21, -13, -7, -1, 7, 20),
+        colorbar=True,
+        display_mode='z',
+        cmap='Reds',
+        axes=axes[i, 0]  # Specify the axes for the first column
+    )
+    # Set the title for the first column
+    axes[i, 0].set_title(map_names[i])
+
+    # Plot the second column map
+    plotting.plot_stat_map(
+        map_list_column_2[i],
+        annotate=False,
+        bg_img=None,  # Set background to None for a white background
         vmin=0.00000000000001,
         vmax=1,
         cut_coords=(-34, -21, -13, -7, -1, 7, 20),
         colorbar=True,
         display_mode='z',
         cmap='Reds_r',
-        axes=axes[i]  # Specify the axes for the plot
+        axes=axes[i, 1]  # Specify the axes for the second column
     )
-
-    # Set the title for each subplot
-    axes[i].set_title(map_path.split('/')[-1].split('.')[0])
-
-# Adjust layout
-plt.tight_layout()
+    # Set the title for the second column
+    axes[i, 1].set_title(map_names[i] + " {}%".format(numpy.round(perc_sign_list[i], 2)))
 
 # Save the combined plot as a single image
-plt.savefig("combined_maps_vertical.png")
+plt.savefig(os.path.join(figures_dir, "combined_results.png"), bbox_inches='tight', facecolor='white')
 
 # Show the plots
-plt.show()
+plt.close('all')
+
+
+

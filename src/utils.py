@@ -6,15 +6,32 @@ import matplotlib.pyplot as plt
 import nibabel
 import os
 
-def SDMA_Stouffer(multiverse_outputs_matrix):
-    K = multiverse_outputs_matrix.shape[0]
+def SDMA_Stouffer(masked_z_maps_flatten):
+    K = masked_z_maps_flatten.shape[0]
     ones = numpy.ones((K, 1))
-    Q = numpy.corrcoef(multiverse_outputs_matrix)
+    Q = numpy.corrcoef(masked_z_maps_flatten)
     attenuated_variance = ones.T.dot(Q).dot(ones) / K**2
     # compute meta-analytic statistics
-    T_map = numpy.mean(multiverse_outputs_matrix, 0)/numpy.sqrt(attenuated_variance)
+    T_map = numpy.mean(masked_z_maps_flatten, 0)/numpy.sqrt(attenuated_variance)
     T_map = T_map.reshape(-1)
     # compute p-values for inference
+    # p_values = 1 - scipy.stats.norm.cdf(T_map)
+    p_values = scipy.stats.norm.sf(T_map)
+    p_values = p_values.reshape(-1)
+    return T_map, p_values
+
+def SDMA_GLS(masked_z_maps_flatten):
+    K = masked_z_maps_flatten.shape[0]
+    Q0 = numpy.corrcoef(masked_z_maps_flatten)
+    Q = Q0.copy()
+    Q_inv = numpy.linalg.inv(Q)
+    ones = numpy.ones((K, 1))
+    top = ones.T.dot(Q_inv).dot(masked_z_maps_flatten)
+    down = ones.T.dot(Q_inv).dot(ones)
+    T_map = top/numpy.sqrt(down)
+    T_map = T_map.reshape(-1)
+    # Assuming variance is estimated on whole image
+    # and assuming infinite df
     # p_values = 1 - scipy.stats.norm.cdf(T_map)
     p_values = scipy.stats.norm.sf(T_map)
     p_values = p_values.reshape(-1)
