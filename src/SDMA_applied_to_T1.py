@@ -135,6 +135,12 @@ FSLVBM_sign_p_originals = masker.inverse_transform(multiverse_outputs_matrix_sig
 FSLANAT_sign_p_originals = masker.inverse_transform(multiverse_outputs_matrix_sign_p[2])
 
 nibabel.save(output_SDMA_p_significant_from_z_nii, os.path.join(results_dir , "SDMA_Stouffer_(z)_p_significant_outputs.nii"))
+nibabel.save(CAT12_sign_p_originals, os.path.join(results_dir , "CAT12_sign_p_originals.nii"))
+nibabel.save(FSLVBM_sign_p_originals, os.path.join(results_dir , "FSLVBM_sign_p_originals.nii"))
+nibabel.save(FSLANAT_sign_p_originals, os.path.join(results_dir , "FSLANAT_sign_p_originals.nii"))
+
+
+
 
 utils.plot_map(CAT12_sign_p_originals, multiverse_outputs_mask, os.path.join(figures_dir , "CAT12_sign_p_originals"))
 utils.plot_map(FSLVBM_sign_p_originals, multiverse_outputs_mask, os.path.join(figures_dir , "FSLVBM_sign_p_originals"))
