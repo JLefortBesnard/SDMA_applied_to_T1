@@ -130,6 +130,8 @@ output_SDMA_p_significant_from_z[output_SDMA_p_significant_from_z > 0.05] = 0
 
 # save as nii
 output_SDMA_p_significant_from_z_nii = masker.inverse_transform(output_SDMA_p_significant_from_z)
+output_SDMA_z_from_z_nii = masker.inverse_transform(utils.SDMA_Stouffer(multiverse_outputs_matrix_z)[0])
+nibabel.save(output_SDMA_z_from_z_nii, os.path.join(results_dir , "output_SDMA_z_from_z_nii.nii"))
 CAT12_sign_p_originals = masker.inverse_transform(multiverse_outputs_matrix_sign_p[0])
 FSLVBM_sign_p_originals = masker.inverse_transform(multiverse_outputs_matrix_sign_p[1])
 FSLANAT_sign_p_originals = masker.inverse_transform(multiverse_outputs_matrix_sign_p[2])
@@ -140,11 +142,44 @@ nibabel.save(FSLVBM_sign_p_originals, os.path.join(results_dir , "FSLVBM_sign_p_
 nibabel.save(FSLANAT_sign_p_originals, os.path.join(results_dir , "FSLANAT_sign_p_originals.nii"))
 
 
-
-
 utils.plot_map(CAT12_sign_p_originals, multiverse_outputs_mask, os.path.join(figures_dir , "CAT12_sign_p_originals"))
 utils.plot_map(FSLVBM_sign_p_originals, multiverse_outputs_mask, os.path.join(figures_dir , "FSLVBM_sign_p_originals"))
 utils.plot_map(FSLANAT_sign_p_originals, multiverse_outputs_mask, os.path.join(figures_dir , "FSLANAT_sign_p_originals"))
 utils.plot_map(output_SDMA_p_significant_from_z_nii, multiverse_outputs_mask, os.path.join(figures_dir , "SDMA_Stouffer_p_significant_outputs"))
 
+stop
+map_list = output_SDMA_p_significant_from_z_nii, CAT12_sign_p_originals = masker.inverse_transform(multiverse_outputs_matrix_sign_p[0])
+FSLVBM_sign_p_originals = masker.inverse_transform(multiverse_outputs_matrix_sign_p[1])
+FSLANAT_sign_p_originals = masker.inverse_transform(multiverse_outputs_matrix_sign_p[2])
+# Create a figure for plotting
+fig, axes = plt.subplots(4, 1, figsize=(8, 20))
+# Loop through each map and plot
+for i, map_path in enumerate(map_paths):
+    # Load each map
+    map_img = nib.load(map_path)
+    
+    # Plot the stat map in the respective row
+    plotting.plot_stat_map(
+        map_img,
+        annotate=False,
+        bg_img=bg_mask,
+        vmin=0.00000000000001,
+        vmax=1,
+        cut_coords=(-34, -21, -13, -7, -1, 7, 20),
+        colorbar=True,
+        display_mode='z',
+        cmap='Reds_r',
+        axes=axes[i]  # Specify the axes for the plot
+    )
 
+    # Set the title for each subplot
+    axes[i].set_title(map_path.split('/')[-1].split('.')[0])
+
+# Adjust layout
+plt.tight_layout()
+
+# Save the combined plot as a single image
+plt.savefig("combined_maps_vertical.png")
+
+# Show the plots
+plt.show()
