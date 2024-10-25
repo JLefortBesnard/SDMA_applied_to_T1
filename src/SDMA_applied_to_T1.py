@@ -14,6 +14,9 @@ import utils
 from nilearn.datasets import load_mni152_brain_mask
 import scipy
 from scipy.stats import norm
+from nilearn.image import resample_img
+
+
 
 # reload utils, useful if modifications were made in utils file
 importlib.reload(utils)
@@ -56,6 +59,10 @@ for unthreshold_map in raw_z_value_maps:
 	masks.append(mask)
 multiverse_outputs_mask = masking.intersect_masks(masks, threshold=1, connected=False)
 nibabel.save(multiverse_outputs_mask, os.path.join(data_dir, "masking", "multiverse_outputs_mask.nii"))
+
+# Save the modified NIfTI file
+nib.save(A_modified, 'path/to/A_modified.nii')
+
 
 # load mask for inverse transform
 masker = NiftiMasker(
@@ -182,12 +189,17 @@ map_list_column_2 = [
     masker.inverse_transform(SDMA_Stouffer_significant_pmap),
     masker.inverse_transform(SDMA_GLS_significant_pmap)
 ]
-map_names = ["CAT12", "FSLVBM", "FSLANAT", "SDMA Stouffer", "SDMA GLS"]
+map_names = ["CAT12", "FSLVBM", "FSLANAT", "|| SDMA Stouffer ||", "|| SDMA GLS ||"]
 perc_sign_list = [CAT12_percentage_significance*100, FSLVBM_percentage_significance*100, FSLANAT_percentage_significance*100, SDMA_Stouffer_percentage_significance*100, SDMA_GLS_percentage_significance*100]
+
+# # make MNI mask to get same shape and affine as ou mask (to allow to better visualisation)
+# MNI_mask = load_mni152_brain_mask()
+# # Resample the brain mask to match the shape and affine of B.nii
+# MNI_mask_resampled = resample_img(MNI_mask, target_affine=multiverse_outputs_mask.affine, target_shape=multiverse_outputs_mask.shape)
 
 
 # Create a figure for plotting with 5 rows and 2 columns
-fig, axes = plt.subplots(5, 2, figsize=(12, 15))
+fig, axes = plt.subplots(5, 2, figsize=(10, 7))
 # Loop through each map and plot
 for i in range(len(map_list_column_1)):
     # Plot the first column map
@@ -212,7 +224,7 @@ for i in range(len(map_list_column_1)):
         annotate=False,
         bg_img=None,  # Set background to None for a white background
         vmin=0.00000000000001,
-        vmax=1,
+        vmax=0.1,
         cut_coords=(-34, -21, -13, -7, -1, 7, 20),
         colorbar=True,
         display_mode='z',
