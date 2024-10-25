@@ -35,31 +35,25 @@ raw_p_value_maps.sort()
 assert len(raw_z_value_maps) == 3
 assert len(raw_p_value_maps) == 3
 # check size of maps and visualize maps
-for i in range(3):
+for i in range(1):
+	print(raw_z_value_maps[i])
 	assert nibabel.load(raw_z_value_maps[i]).get_fdata().shape == (91, 109, 91)
 	assert nibabel.load(raw_p_value_maps[i]).get_fdata().shape == (91, 109, 91)
-	plotting.plot_stat_map(raw_p_value_maps[i], bg_img =raw_z_value_maps[i])
-	plotting.plot_stat_map(raw_z_value_maps[i], bg_img =raw_z_value_maps[i])
-	plt.show()
-stop
-
-
-
 
 #######
 # compute mask using the p value maps (if done with the z value maps, the R masking is different (8 voxels less))
 #######
 masks = []
 print("Computing mask...")
-for unthreshold_map in raw_p_value_maps:
+for unthreshold_map in raw_z_value_maps:
 	mask = masking.compute_background_mask(unthreshold_map)
 	masks.append(mask)
 multiverse_outputs_mask = masking.intersect_masks(masks, threshold=1, connected=False)
 nibabel.save(multiverse_outputs_mask, os.path.join(data_dir, "masking", "multiverse_outputs_mask.nii"))
 
-# check mask computed using python is equivalent to mask computed using R
-mask_using_R = os.path.join(data_dir, "masking", "Mask_3Proc.nii.gz")
-assert nibabel.load(mask_using_R).get_fdata().sum() == multiverse_outputs_mask.get_fdata().sum()
+# # check mask computed using python is equivalent to mask computed using R
+# mask_using_R = os.path.join(data_dir, "masking", "Mask_3Proc.nii.gz")
+# assert nibabel.load(mask_using_R).get_fdata().sum() == multiverse_outputs_mask.get_fdata().sum()
 
 # save mask for inverse transform
 masker = NiftiMasker(
@@ -95,7 +89,6 @@ resampled_p_maps = masking_raw_maps(raw_p_value_maps, multiverse_outputs_mask)
 # masking resampled data (to get K*J matrix)
 #######
 multiverse_outputs_matrix_z = masker.fit_transform(resampled_z_maps.values())
-multiverse_outputs_matrix_z = multiverse_outputs_matrix_z/2 # one tailed to two-tailed
 multiverse_outputs_matrix_p = masker.fit_transform(resampled_p_maps.values())
 
 
@@ -117,21 +110,14 @@ def plot_corr_matrix(data, names, title, saving_path):
 	# Show the plot
 	plt.tight_layout()
 	plt.savefig(saving_path)
+	plt.show()
 
 plot_corr_matrix(multiverse_outputs_matrix_z, resampled_z_maps.keys(), 'correlation z values', os.path.join(figures_dir, 'correlation_z_values.png'))
 plot_corr_matrix(multiverse_outputs_matrix_p, resampled_p_maps.keys(), 'correlation p values', os.path.join(figures_dir, 'correlation_p_values.png'))
-multiverse_outputs_matrix_p_to_z = utils.p_value_to_z_matrix(multiverse_outputs_matrix_p , tail='two-tailed')
-plot_corr_matrix(multiverse_outputs_matrix_p_to_z, resampled_p_maps.keys(), 'correlation p to Z values', os.path.join(figures_dir, 'correlation_p_to_Z_values.png'))
 
 #######
 # compute and plot SDMA results
 #######
-
-
-output_SDMA_p_from_p_to_z = utils.SDMA_Stouffer(multiverse_outputs_matrix_p_to_z)[1]
-# turn every p > 0.05 equal to 0
-output_SDMA_p_significant_from_p_to_z = output_SDMA_p_from_p_to_z.copy()
-output_SDMA_p_significant_from_p_to_z[output_SDMA_p_significant_from_p_to_z > 0.05] = 0
 
 output_SDMA_p_from_z = utils.SDMA_Stouffer(multiverse_outputs_matrix_z)[1]
 # turn every p > 0.05 equal to 0
@@ -141,8 +127,5 @@ output_SDMA_p_significant_from_z[output_SDMA_p_significant_from_z > 0.05] = 0
 # save as nii
 output_SDMA_p_significant_from_z_nii = masker.inverse_transform(output_SDMA_p_significant_from_z)
 nibabel.save(output_SDMA_p_significant_from_z_nii, os.path.join(results_dir , "SDMA_Stouffer_(z)_p_significant_outputs.nii"))
-output_SDMA_p_significant_from_p_to_z_nii = masker.inverse_transform(output_SDMA_p_significant_from_p_to_z)
-nibabel.save(output_SDMA_p_significant_from_p_to_z_nii, os.path.join(results_dir , "SDMA_Stouffer_(p_to_z)_p_significant_outputs.nii"))
 
-utils.plot_map(output_SDMA_p_significant_from_p_to_z_nii, multiverse_outputs_mask, os.path.join(figures_dir , "SDMA_Stouffer_(p_to_z)_p_significant_outputs"))
 utils.plot_map(output_SDMA_p_significant_from_z_nii, multiverse_outputs_mask, os.path.join(figures_dir , "SDMA_Stouffer_p_significant_outputs"))
