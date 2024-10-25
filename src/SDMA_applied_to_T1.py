@@ -60,10 +60,6 @@ for unthreshold_map in raw_z_value_maps:
 multiverse_outputs_mask = masking.intersect_masks(masks, threshold=1, connected=False)
 nibabel.save(multiverse_outputs_mask, os.path.join(data_dir, "masking", "multiverse_outputs_mask.nii"))
 
-# Save the modified NIfTI file
-nib.save(A_modified, 'path/to/A_modified.nii')
-
-
 # load mask for inverse transform
 masker = NiftiMasker(
     mask_img=multiverse_outputs_mask)
