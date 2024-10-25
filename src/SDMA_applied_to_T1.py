@@ -12,6 +12,8 @@ import numpy
 import importlib
 import utils
 from nilearn.datasets import load_mni152_brain_mask
+import scipy
+from scipy.stats import norm
 
 # reload utils, useful if modifications were made in utils file
 importlib.reload(utils)
@@ -83,14 +85,17 @@ def masking_raw_maps(raw_maps, mask):
 	return resampled_maps
 
 resampled_z_maps = masking_raw_maps(raw_z_value_maps, multiverse_outputs_mask)
-resampled_p_maps = masking_raw_maps(raw_p_value_maps, multiverse_outputs_mask)
+
 
 #######
 # masking resampled data (to get K*J matrix)
 #######
 multiverse_outputs_matrix_z = masker.fit_transform(resampled_z_maps.values())
-multiverse_outputs_matrix_p = masker.fit_transform(resampled_p_maps.values())
 
+# compute Z into p to check diff with SDMA outputs and 3 inputs significant values:
+multiverse_outputs_matrix_p = scipy.stats.norm.sf(multiverse_outputs_matrix_z)
+multiverse_outputs_matrix_sign_p = multiverse_outputs_matrix_p.copy()
+multiverse_outputs_matrix_sign_p[multiverse_outputs_matrix_sign_p>0.05] = 0
 
 #######
 # plot correlation matrix
@@ -113,7 +118,6 @@ def plot_corr_matrix(data, names, title, saving_path):
 	plt.show()
 
 plot_corr_matrix(multiverse_outputs_matrix_z, resampled_z_maps.keys(), 'correlation z values', os.path.join(figures_dir, 'correlation_z_values.png'))
-plot_corr_matrix(multiverse_outputs_matrix_p, resampled_p_maps.keys(), 'correlation p values', os.path.join(figures_dir, 'correlation_p_values.png'))
 
 #######
 # compute and plot SDMA results
@@ -126,6 +130,15 @@ output_SDMA_p_significant_from_z[output_SDMA_p_significant_from_z > 0.05] = 0
 
 # save as nii
 output_SDMA_p_significant_from_z_nii = masker.inverse_transform(output_SDMA_p_significant_from_z)
+CAT12_sign_p_originals = masker.inverse_transform(multiverse_outputs_matrix_sign_p[0])
+FSLVBM_sign_p_originals = masker.inverse_transform(multiverse_outputs_matrix_sign_p[1])
+FSLANAT_sign_p_originals = masker.inverse_transform(multiverse_outputs_matrix_sign_p[2])
+
 nibabel.save(output_SDMA_p_significant_from_z_nii, os.path.join(results_dir , "SDMA_Stouffer_(z)_p_significant_outputs.nii"))
 
+utils.plot_map(CAT12_sign_p_originals, multiverse_outputs_mask, os.path.join(figures_dir , "CAT12_sign_p_originals"))
+utils.plot_map(FSLVBM_sign_p_originals, multiverse_outputs_mask, os.path.join(figures_dir , "FSLVBM_sign_p_originals"))
+utils.plot_map(FSLANAT_sign_p_originals, multiverse_outputs_mask, os.path.join(figures_dir , "FSLANAT_sign_p_originals"))
 utils.plot_map(output_SDMA_p_significant_from_z_nii, multiverse_outputs_mask, os.path.join(figures_dir , "SDMA_Stouffer_p_significant_outputs"))
+
+
