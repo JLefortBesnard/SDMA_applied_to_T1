@@ -4,7 +4,6 @@ import nibabel
 from nilearn import masking
 from nilearn.input_data import NiftiMasker
 from nilearn import image
-from nilearn import surface, plotting
 from nilearn import surface, plotting, datasets
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -16,7 +15,7 @@ import scipy
 from scipy.stats import norm
 from nilearn.image import resample_img
 
-
+import time # TO DEL
 
 # reload utils, useful if modifications were made in utils file
 importlib.reload(utils)
@@ -34,7 +33,7 @@ raw_data_path = os.path.join(data_dir, "multiverse_outputs")
 # GET PATH OF RAW DATA
 #######
 # store Z value raw maps
-raw_z_value_maps = glob.glob(os.path.join(raw_data_path, "*_Z.nii.gz"))
+raw_z_value_maps = glob.glob(os.path.join(raw_data_path, "*_Z_MNI.nii"))
 raw_z_value_maps.sort()
 # store p value raw maps
 raw_p_value_maps = glob.glob(os.path.join(raw_data_path, "*_p.nii.gz"))
@@ -42,8 +41,11 @@ raw_p_value_maps.sort()
 assert len(raw_z_value_maps) == len(raw_p_value_maps) == 3
 
 # check size of maps and visualize maps
-for i in range(1):
+for i in range(3):
+	print("Checking shape of files")
 	print(raw_z_value_maps[i])
+	print(nibabel.load(raw_z_value_maps[i]).get_fdata().mean())
+	print(nibabel.load(raw_p_value_maps[i]).get_fdata().mean())
 	assert nibabel.load(raw_z_value_maps[i]).get_fdata().shape == (91, 109, 91)
 	assert nibabel.load(raw_p_value_maps[i]).get_fdata().shape == (91, 109, 91)
 
@@ -68,12 +70,12 @@ masker = NiftiMasker(
 # RESAMPLE RAW DATA WITH MASK
 #######
 # masking data with the created mask
-def masking_raw_maps(raw_maps, mask):
+def masking_raw_z_maps(raw_maps, mask):
 	# computing mask
 	resampled_data_path = os.path.join(data_dir, "mutliverse_outputs_resampled")
 	resampled_maps = {} #storing the resampled maps
 	for unthreshold_map in raw_maps:
-		name = unthreshold_map.split('/')[-1].split('_')[0] + '_resampled_' + unthreshold_map.split('/')[-1].split('_')[2][:-7]
+		name = unthreshold_map.split('/')[-1].split('_')[0] + '_resampled_Z_MNI' 
 		# resample MNI
 		resampled_map = image.resample_to_img(
 					unthreshold_map,
@@ -87,7 +89,7 @@ def masking_raw_maps(raw_maps, mask):
 		nibabel.save(resampled_maps[key], os.path.join(data_dir, "multiverse_outputs_resampled", "{}.nii".format(key)))
 	return resampled_maps
 
-masked_z_maps = masking_raw_maps(raw_z_value_maps, multiverse_outputs_mask)
+masked_z_maps = masking_raw_z_maps(raw_z_value_maps, multiverse_outputs_mask)
 masked_z_maps_flatten = masker.fit_transform(masked_z_maps.values())
 
 # compute Z into p to check diff with SDMA outputs and 3 inputs significant values:
