@@ -33,7 +33,7 @@ raw_data_path = os.path.join(data_dir, "multiverse_outputs")
 # GET PATH OF RAW DATA
 #######
 # store Z value raw maps
-raw_z_value_maps = glob.glob(os.path.join(raw_data_path, "*_Z_MNI.nii"))
+raw_z_value_maps = glob.glob(os.path.join(raw_data_path, "*_Z_MNI.nii.gz"))
 raw_z_value_maps.sort()
 # store p value raw maps
 raw_p_value_maps = glob.glob(os.path.join(raw_data_path, "*_p.nii.gz"))
