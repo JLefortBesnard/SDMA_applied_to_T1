@@ -90,6 +90,8 @@ def masking_raw_z_maps(raw_maps, mask):
 	return resampled_maps
 
 masked_z_maps = masking_raw_z_maps(raw_z_value_maps, multiverse_outputs_mask)
+for key in masked_z_maps.keys(): # save data
+	nibabel.save(masked_z_maps[key], os.path.join(data_dir, "multiverse_outputs_resampled", "{}.nii".format(key))),
 masked_z_maps_flatten = masker.fit_transform(masked_z_maps.values())
 
 # compute Z into p to check diff with SDMA outputs and 3 inputs significant values:
@@ -173,9 +175,9 @@ nibabel.save(FSLANAT_significant_p, os.path.join(results_dir , "FSLANAT_signific
 
 # Define the second map list
 map_list_column_1 = [
-    os.path.join(data_dir, "multiverse_outputs_resampled", "CAT12_resampled_Z.nii"),
-    os.path.join(data_dir, "multiverse_outputs_resampled", "FSLVBM_resampled_Z.nii"),
-    os.path.join(data_dir, "multiverse_outputs_resampled", "FSLANAT_resampled_Z.nii"),
+    os.path.join(data_dir, "multiverse_outputs_resampled", "CAT12_resampled_Z_MNI.nii"),
+    os.path.join(data_dir, "multiverse_outputs_resampled", "FSLVBM_resampled_Z_MNI.nii"),
+    os.path.join(data_dir, "multiverse_outputs_resampled", "FSLANAT_resampled_Z_MNI.nii"),
     masker.inverse_transform(SDMA_Stouffer_Zmap),
     masker.inverse_transform(SDMA_GLS_Zmap)
 ]
@@ -204,7 +206,7 @@ for i in range(len(map_list_column_1)):
     plotting.plot_stat_map(
         map_list_column_1[i],
         annotate=False,
-        bg_img=None,  # Set background to None for a white background
+        # bg_img=None,  # Set background to None for a white background
         vmin=0.00000000000001,
         vmax=5,
         cut_coords=(-34, -21, -13, -7, -1, 7, 20),
@@ -220,7 +222,7 @@ for i in range(len(map_list_column_1)):
     plotting.plot_stat_map(
         map_list_column_2[i],
         annotate=False,
-        bg_img=None,  # Set background to None for a white background
+        # bg_img=None,  # Set background to None for a white background
         vmin=0.00000000000001,
         vmax=0.1,
         cut_coords=(-34, -21, -13, -7, -1, 7, 20),
