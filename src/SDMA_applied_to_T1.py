@@ -15,7 +15,6 @@ import scipy
 from scipy.stats import norm
 from nilearn.image import resample_img
 
-import time # TO DEL
 
 # reload utils, useful if modifications were made in utils file
 importlib.reload(utils)
