@@ -88,5 +88,4 @@ df_SDMA_results['SDMA_GLS_Z'] = SDMA_GLS_Zmap
 df_SDMA_results['SDMA_GLS_p'] = SDMA_GLS_pmap
 df_SDMA_results['SDMA_GLS_significant_p'] = SDMA_GLS_significant_pmap
 
-
 df_SDMA_results.to_csv(os.path.join(results_dir, "results_SDMA_surface.linear"), sep=' ', index=False)
