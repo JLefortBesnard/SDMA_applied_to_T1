@@ -97,6 +97,9 @@ masked_z_maps_flatten = masker.fit_transform(masked_z_maps.values())
 masked_p_maps_flatten = scipy.stats.norm.sf(masked_z_maps_flatten)
 masked_significant_p_maps_flatten = masked_p_maps_flatten.copy()
 masked_significant_p_maps_flatten[masked_significant_p_maps_flatten>0.05] = 0
+# create significant map with z values where p is significant
+masked_significant_z_maps_flatten = masked_z_maps_flatten.copy()
+masked_significant_z_maps_flatten[masked_p_maps_flatten>0.05] = 0
 
 CAT12_percentage_significance = len(masked_significant_p_maps_flatten[0][masked_significant_p_maps_flatten[0] != 0]) / len(masked_significant_p_maps_flatten[0])
 FSLVBM_percentage_significance = len(masked_significant_p_maps_flatten[1][masked_significant_p_maps_flatten[1] != 0]) / len(masked_significant_p_maps_flatten[1])
@@ -137,6 +140,10 @@ SDMA_Stouffer_Zmap = SDMA_Stouffer_outputs[0]
 SDMA_Stouffer_pmap = SDMA_Stouffer_outputs[1]
 SDMA_Stouffer_significant_pmap = SDMA_Stouffer_pmap.copy()
 SDMA_Stouffer_significant_pmap[SDMA_Stouffer_significant_pmap>0.05] = 0 # non corrected
+# keep t value where p is significant, 0 elsewhere
+SDMA_Stouffer_significant_zmap = SDMA_Stouffer_Zmap.copy()
+SDMA_Stouffer_significant_zmap[SDMA_Stouffer_pmap>0.05] = 0 # non corrected
+
 SDMA_Stouffer_percentage_significance = len(SDMA_Stouffer_significant_pmap[SDMA_Stouffer_significant_pmap != 0]) / len(SDMA_Stouffer_significant_pmap)
 
 #save results
@@ -154,6 +161,10 @@ SDMA_GLS_Zmap = SDMA_GLS_outputs[0]
 SDMA_GLS_pmap = SDMA_GLS_outputs[1]
 SDMA_GLS_significant_pmap = SDMA_GLS_pmap.copy()
 SDMA_GLS_significant_pmap[SDMA_GLS_significant_pmap>0.05] = 0 # non corrected
+# keep t value where p is significant, 0 elsewhere
+SDMA_GLS_significant_zmap = SDMA_GLS_Zmap.copy()
+SDMA_GLS_significant_zmap[SDMA_GLS_pmap>0.05] = 0 # non corrected
+
 SDMA_GLS_percentage_significance = len(SDMA_GLS_significant_pmap[SDMA_GLS_significant_pmap != 0]) / len(SDMA_GLS_significant_pmap)
 #save results
 nibabel.save(masker.inverse_transform(SDMA_GLS_Zmap), os.path.join(results_dir , "SDMA_GLS_Zmap.nii"))
@@ -163,9 +174,9 @@ nibabel.save(masker.inverse_transform(SDMA_GLS_significant_pmap), os.path.join(r
 #######
 # SAVE ORIGINAL ZVALUE AND PVALUES FOR EACH PIPELINE (to compare with SDMA results)
 #######
-CAT12_significant_p = masker.inverse_transform(masked_significant_p_maps_flatten[0])
-FSLVBM_significant_p = masker.inverse_transform(masked_significant_p_maps_flatten[1])
-FSLANAT_significant_p = masker.inverse_transform(masked_significant_p_maps_flatten[2])
+CAT12_significant_p = masker.inverse_transform(masked_significant_z_maps_flatten[0])
+FSLVBM_significant_p = masker.inverse_transform(masked_significant_z_maps_flatten[1])
+FSLANAT_significant_p = masker.inverse_transform(masked_significant_z_maps_flatten[2])
 
 nibabel.save(CAT12_significant_p, os.path.join(results_dir , "CAT12_significant_p.nii"))
 nibabel.save(FSLVBM_significant_p, os.path.join(results_dir , "FSLVBM_significant_p.nii"))
@@ -185,8 +196,8 @@ map_list_column_2 = [
     CAT12_significant_p,
     FSLVBM_significant_p,
     FSLANAT_significant_p,
-    masker.inverse_transform(SDMA_Stouffer_significant_pmap),
-    masker.inverse_transform(SDMA_GLS_significant_pmap)
+    masker.inverse_transform(SDMA_Stouffer_significant_zmap),
+    masker.inverse_transform(SDMA_GLS_significant_zmap)
 ]
 map_names = ["CAT12", "FSLVBM", "FSLANAT", "|| SDMA Stouffer ||", "|| SDMA GLS ||"]
 perc_sign_list = [CAT12_percentage_significance*100, FSLVBM_percentage_significance*100, FSLANAT_percentage_significance*100, SDMA_Stouffer_percentage_significance*100, SDMA_GLS_percentage_significance*100]
@@ -223,11 +234,11 @@ for i in range(len(map_list_column_1)):
         annotate=False,
         # bg_img=None,  # Set background to None for a white background
         vmin=0.00000000000001,
-        vmax=0.1,
+        vmax=5,
         cut_coords=(-34, -21, -13, -7, -1, 7, 20),
         colorbar=True,
         display_mode='z',
-        cmap='Reds_r',
+        cmap='Reds',
         axes=axes[i, 1]  # Specify the axes for the second column
     )
     # Set the title for the second column
