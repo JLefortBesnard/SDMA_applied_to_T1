@@ -64,7 +64,7 @@ nibabel.save(multiverse_outputs_mask, os.path.join(data_dir, "masking", "multive
 # load mask for inverse transform
 masker = NiftiMasker(
     mask_img=multiverse_outputs_mask)
-
+print("Computing mask... DONE")
 #######
 # RESAMPLE RAW DATA WITH MASK
 #######
@@ -88,11 +88,12 @@ def masking_raw_z_maps(raw_maps, mask):
 		nibabel.save(resampled_maps[key], os.path.join(data_dir, "multiverse_outputs_resampled", "{}.nii".format(key)))
 	return resampled_maps
 
+print("Masking Z maps...")
 masked_z_maps = masking_raw_z_maps(raw_z_value_maps, multiverse_outputs_mask)
 for key in masked_z_maps.keys(): # save data
 	nibabel.save(masked_z_maps[key], os.path.join(data_dir, "multiverse_outputs_resampled", "{}.nii".format(key))),
 masked_z_maps_flatten = masker.fit_transform(masked_z_maps.values())
-
+print("Masking Z maps... DONE")
 # compute Z into p to check diff with SDMA outputs and 3 inputs significant values:
 masked_p_maps_flatten = scipy.stats.norm.sf(masked_z_maps_flatten)
 masked_significant_p_maps_flatten = masked_p_maps_flatten.copy()
@@ -108,6 +109,8 @@ FSLANAT_percentage_significance = len(masked_significant_p_maps_flatten[2][maske
 #######
 # PLOT CORRELATION MATRICES
 #######
+
+print("Plot correlation matrix...")
 def plot_corr_matrix(data, names, title, saving_path):
 	Q = numpy.corrcoef(data)
 	# Create a heatmap of the correlation matrix
@@ -130,6 +133,8 @@ plot_corr_matrix(masked_z_maps_flatten, masked_z_maps.keys(), 'correlation z val
 # between p values per mask
 plot_corr_matrix(masked_p_maps_flatten, masked_z_maps.keys(), 'correlation p values', os.path.join(figures_dir, 'correlation_p_values.png'))
 
+print("Plot correlation matrix... DONE")
+print("Compute SDMA...")
 #######
 # COMPUTE SDMA STOUFFER
 #######
@@ -170,7 +175,9 @@ SDMA_GLS_percentage_significance = len(SDMA_GLS_significant_pmap[SDMA_GLS_signif
 nibabel.save(masker.inverse_transform(SDMA_GLS_Zmap), os.path.join(results_dir , "SDMA_GLS_Zmap.nii"))
 nibabel.save(masker.inverse_transform(SDMA_GLS_pmap), os.path.join(results_dir , "SDMA_GLS_pmap.nii"))
 nibabel.save(masker.inverse_transform(SDMA_GLS_significant_pmap), os.path.join(results_dir , "SDMA_GLS_significant_pmap.nii"))
+print("Compute SDMA... DONE")
 
+print("Save data...")
 #######
 # SAVE ORIGINAL ZVALUE AND PVALUES FOR EACH PIPELINE (to compare with SDMA results)
 #######
@@ -206,10 +213,108 @@ perc_sign_list = [CAT12_percentage_significance*100, FSLVBM_percentage_significa
 # MNI_mask = load_mni152_brain_mask()
 # # Resample the brain mask to match the shape and affine of B.nii
 # MNI_mask_resampled = resample_img(MNI_mask, target_affine=multiverse_outputs_mask.affine, target_shape=multiverse_outputs_mask.shape)
+print("Save data... DONE")
 
 
+print("Plot combined results...")
 # Create a figure for plotting with 5 rows and 2 columns
-fig, axes = plt.subplots(5, 2, figsize=(10, 7))
+fig, axes = plt.subplots(5, 2, figsize=(18, 12))
+# Loop through each map and plot
+for i in range(len(map_list_column_1)):
+    # Plot the first column map
+    plotting.plot_stat_map(
+        map_list_column_1[i],
+        annotate=False,
+        # bg_img=None,  # Set background to None for a white background
+        vmin=-8,
+        vmax=8,
+        cut_coords=(-34, -21, -13, -7, -1, 7, 20),
+        colorbar=True,
+        display_mode='z',
+        cmap='coolwarm',
+        axes=axes[i, 0]  # Specify the axes for the first column
+    )
+    # Set the title for the first column
+    axes[i, 0].set_title(map_names[i])
+
+    # Plot the second column map
+    plotting.plot_stat_map(
+        map_list_column_2[i],
+        annotate=False,
+        # bg_img=None,  # Set background to None for a white background
+        vmin=-8,
+        vmax=8,
+        cut_coords=(-34, -21, -13, -7, -1, 7, 20),
+        colorbar=True,
+        display_mode='z',
+        cmap='coolwarm',
+        axes=axes[i, 1]  # Specify the axes for the second column
+    )
+    # Set the title for the second column
+    axes[i, 1].set_title(map_names[i] + " {}%".format(numpy.round(perc_sign_list[i], 2)))
+
+# Save the combined plot as a single image
+plt.savefig(os.path.join(figures_dir, "combined_results.png"), bbox_inches='tight', facecolor='white')
+# Show the plots
+plt.close('all')
+print("Plot combined results...DONE")
+
+print("Plot PP plot...")
+pmaps_flatten = numpy.vstack([masked_p_maps_flatten, SDMA_Stouffer_pmap, SDMA_GLS_pmap])
+pmaps_flatten_sorted = numpy.sort(pmaps_flatten)
+# Generate the theoretical uniform quantiles (0 to 1)
+uniform_quantiles = numpy.linspace(0, 1, len(pmaps_flatten[0,:]))
+labels = ['CAT12', 'FSLVBM', 'FSLANAT', 'SDMA Stouffer', 'SDMA GLS']
+colors = ['#1D5FA1', '#4B8BBE', '#7A9CBB',  # Shades of blue/teal
+          '#FF6F61', '#FFB6C1']  # Shades of red/pink
+# Generate the theoretical uniform quantiles (0 to 1)
+uniform_quantiles = numpy.linspace(0, 1, len(pmaps_flatten[0, :]))
+
+# Labels and colors for the PP plot
+labels = ['CAT12', 'FSLVBM', 'FSLANAT', 'SDMA Stouffer', 'SDMA GLS']
+colors = ['#A9D0F5', '#4A90E2', '#003366',  # Shades of blue
+          '#FF6F61', '#FFB6C1']  # Shades of red/pink
+
+# Create a new figure for the PP plot
+fig, pp_ax = plt.subplots(figsize=(10, 8))
+
+# Plot the PP plots for all datasets on the same axis
+for i in range(5):
+    pp_ax.plot(uniform_quantiles, pmaps_flatten_sorted[i, :], label=labels[i], color=colors[i])
+
+# Plot the ideal uniform distribution (diagonal line)
+pp_ax.plot(uniform_quantiles, uniform_quantiles, linestyle='--', color='green', label='Ideal Uniform CDF')
+
+# Set PP plot labels and title
+pp_ax.set_xlabel('Theoretical Quantiles (Uniform)')
+pp_ax.set_ylabel('Empirical Quantiles (Sorted p-values)')
+pp_ax.set_title('PP Plot')
+pp_ax.legend()
+pp_ax.grid(True)
+# Adjust layout for better spacing
+plt.tight_layout()
+
+# Save the PP plot as a separate image
+plt.savefig(os.path.join(figures_dir, "pp_plot.png"), bbox_inches='tight', facecolor='white')
+# Close the plot after saving
+plt.close('all')
+print("PP Plot saved...DONE")
+
+
+
+
+
+
+
+
+
+
+print("Plot results...")
+
+
+# Create a figure for plotting with 5 rows and 3 columns
+fig, axes = plt.subplots(5, 3, figsize=(15, 10))  # Adjust the figsize as needed
+
 # Loop through each map and plot
 for i in range(len(map_list_column_1)):
     # Plot the first column map
@@ -244,11 +349,121 @@ for i in range(len(map_list_column_1)):
     # Set the title for the second column
     axes[i, 1].set_title(map_names[i] + " {}%".format(numpy.round(perc_sign_list[i], 2)))
 
-# Save the combined plot as a single image
+# add pp plot to figure
+pmaps_flatten = numpy.vstack([masked_p_maps_flatten, SDMA_Stouffer_pmap, SDMA_GLS_pmap])
+pmaps_flatten_sorted = numpy.sort(pmaps_flatten)
+# Generate the theoretical uniform quantiles (0 to 1)
+uniform_quantiles = numpy.linspace(0, 1, len(pmaps_flatten[0,:]))
+labels = ['CAT12', 'FSLVBM', 'FSLANAT', 'SDMA Stouffer', 'SDMA GLS']
+colors = ['#4A90E2', '#5B9BD5', '#7FBCD2',  # Shades of blue/teal
+          '#FF6F61', '#FFB6C1']  # Shades of red/pink
+
+# Create PP plot
+pp_ax = fig.add_subplot(5, 2, (5, 5))  # Add PP plot in the last subplot (bottom row, second column)
+# Plot the PP plots for all datasets on the same axis
+for i in range(5):
+    pp_ax.plot(uniform_quantiles, pmaps_flatten_sorted[i, :], label=labels[i], color=colors[i])
+
+# Plot the ideal uniform distribution (diagonal line)
+pp_ax.plot(uniform_quantiles, uniform_quantiles, linestyle='--', color='green', label='Ideal Uniform CDF')
+
+# Set PP plot labels and title
+pp_ax.set_xlabel('Theoretical Quantiles (Uniform)')
+pp_ax.set_ylabel('Empirical Quantiles (Sorted p-values)')
+pp_ax.set_title('PP Plot of p-values for All Datasets')
+pp_ax.legend()
+pp_ax.grid(True)
+
+# Adjust layout for better spacing
+plt.tight_layout()
+
+# Save the combined plot as a single image (combined_results.png)
 plt.savefig(os.path.join(figures_dir, "combined_results.png"), bbox_inches='tight', facecolor='white')
 
-# Show the plots
+# Close the plots after saving
 plt.close('all')
 
+print("Plot results...DONE")
 
 
+import numpy as np
+import os
+import matplotlib.pyplot as plt
+import scipy.stats as stats
+from nilearn import plotting
+
+# Assuming `map_list_column_1`, `map_list_column_2`, `map_names`, etc., are already defined
+# Also assuming your `figures_dir` variable is set to the correct path
+
+# Create a figure for plotting with 7 rows and 2 columns
+fig, axes = plt.subplots(7, 2, figsize=(10, 14))  # Adjust figsize for the new layout
+
+# Loop through each map and plot the first 5 rows and 2 columns (statistical maps)
+for i in range(len(map_list_column_1)):
+    # Plot the first column map (for the first 5 rows)
+    plotting.plot_stat_map(
+        map_list_column_1[i],
+        annotate=False,
+        vmin=0.00000000000001,
+        vmax=5,
+        cut_coords=(-34, -21, -13, -7, -1, 7, 20),
+        colorbar=True,
+        display_mode='z',
+        cmap='Reds',
+        axes=axes[i, 0]  # Specify the axes for the first column
+    )
+    axes[i, 0].set_title(map_names[i])
+
+    # Plot the second column map (for the first 5 rows)
+    plotting.plot_stat_map(
+        map_list_column_2[i],
+        annotate=False,
+        vmin=0.00000000000001,
+        vmax=5,
+        cut_coords=(-34, -21, -13, -7, -1, 7, 20),
+        colorbar=True,
+        display_mode='z',
+        cmap='Reds',
+        axes=axes[i, 1]  # Specify the axes for the second column
+    )
+    axes[i, 1].set_title(map_names[i] + " {}%".format(np.round(perc_sign_list[i], 2)))
+
+# PP Plot in the last 2 rows (6th and 7th rows) spanning both columns
+# Generate the theoretical uniform quantiles (0 to 1)
+uniform_quantiles = np.linspace(0, 1, len(pmaps_flatten[0, :]))
+
+# Create PP plot in the axes that span the last two rows and two columns
+pp_ax = fig.add_subplot(7, 2, (12, 14))  # Add PP plot in the last 2 rows, spanning both columns (row 6 and 7)
+
+# Labels and colors for the PP plot
+labels = ['CAT12', 'FSLVBM', 'FSLANAT', 'SDMA Stouffer', 'SDMA GLS']
+colors = ['#4A90E2', '#5B9BD5', '#7FBCD2',  # Shades of blue/teal
+          '#FF6F61', '#FFB6C1']  # Shades of red/pink
+
+# Plot the PP plots for all datasets on the same axis
+for i in range(5):
+    pp_ax.plot(uniform_quantiles, pmaps_flatten_sorted[i, :], label=labels[i], color=colors[i])
+
+# Plot the ideal uniform distribution (diagonal line)
+pp_ax.plot(uniform_quantiles, uniform_quantiles, linestyle='--', color='green', label='Ideal Uniform CDF')
+
+# Set PP plot labels and title
+pp_ax.set_xlabel('Theoretical Quantiles (Uniform)')
+pp_ax.set_ylabel('Empirical Quantiles (Sorted p-values)')
+pp_ax.set_title('PP Plot of p-values for All Datasets')
+pp_ax.legend()
+pp_ax.grid(True)
+
+# Adjust layout for better spacing
+plt.tight_layout()
+
+# Save the combined plot as a single image (combined_results.png)
+plt.savefig(os.path.join(figures_dir, "combined_results.png"), bbox_inches='tight', facecolor='white')
+
+# Close the plots after saving
+plt.close('all')
+
+print("Plot results...DONE")
+
+# Optionally, display the plot
+plt.show()
