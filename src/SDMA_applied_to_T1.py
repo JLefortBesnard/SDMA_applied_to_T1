@@ -12,8 +12,8 @@ import importlib
 import utils
 from nilearn.datasets import load_mni152_brain_mask
 import scipy
-from scipy.stats import norm
 from nilearn.image import resample_img
+import scipy.stats as stats
 
 
 # reload utils, useful if modifications were made in utils file
@@ -261,8 +261,8 @@ plt.close('all')
 print("Plot combined results...DONE")
 
 
-# QQ and PP PLOTq
-print("Plot QQ and PP plotq...")
+# QQ and PP PLOTs
+print("Plot QQ and PP plots...")
 pmaps_flatten = numpy.vstack([masked_p_maps_flatten, SDMA_Stouffer_pmap, SDMA_GLS_pmap])
 pmaps_flatten_sorted = numpy.sort(pmaps_flatten)
 # Generate the theoretical uniform quantiles (0 to 1)
@@ -306,100 +306,15 @@ def distribution_inversed(J):
         distribution_inversed.append(i/(J+1))
     return distribution_inversed     
 
-
 def minusLog10me(values):
     # prevent log10(0)
     return numpy.array([-numpy.log10(i) if i != 0 else 5 for i in values])
 
-
-
-plt.close('all')
 J = pmaps_flatten.shape[1]
 K = pmaps_flatten.shape[0]
 pmaps_flatten_sorted
 p_cum = distribution_inversed(J)
 x_lim_pplot =  5 #-numpy.log10(1/J)
-
-
-print("Plot results...DONE")
-
-
-import numpy as np
-import os
-import matplotlib.pyplot as plt
-import scipy.stats as stats
-from nilearn import plotting
-
-# Assuming `map_list_column_1`, `map_list_column_2`, `map_names`, etc., are already defined
-# Also assuming your `figures_dir` variable is set to the correct path
-
-# Create a figure for plotting with 7 rows and 2 columns
-fig, axes = plt.subplots(7, 2, figsize=(10, 14))  # Adjust figsize for the new layout
-
-# Loop through each map and plot the first 5 rows and 2 columns (statistical maps)
-for i in range(len(map_list_column_1)):
-    # Plot the first column map (for the first 5 rows)
-    plotting.plot_stat_map(
-        map_list_column_1[i],
-        annotate=False,
-        vmin=0.00000000000001,
-        vmax=5,
-        cut_coords=(-34, -21, -13, -7, -1, 7, 20),
-        colorbar=True,
-        display_mode='z',
-        cmap='Reds',
-        axes=axes[i, 0]  # Specify the axes for the first column
-    )
-    axes[i, 0].set_title(map_names[i])
-
-    # Plot the second column map (for the first 5 rows)
-    plotting.plot_stat_map(
-        map_list_column_2[i],
-        annotate=False,
-        vmin=0.00000000000001,
-        vmax=5,
-        cut_coords=(-34, -21, -13, -7, -1, 7, 20),
-        colorbar=True,
-        display_mode='z',
-        cmap='Reds',
-        axes=axes[i, 1]  # Specify the axes for the second column
-    )
-    axes[i, 1].set_title(map_names[i] + " {}%".format(np.round(perc_sign_list[i], 2)))
-
-# PP Plot in the last 2 rows (6th and 7th rows) spanning both columns
-# Generate the theoretical uniform quantiles (0 to 1)
-uniform_quantiles = np.linspace(0, 1, len(pmaps_flatten[0, :]))
-
-# Create PP plot in the axes that span the last two rows and two columns
-pp_ax = fig.add_subplot(7, 2, (12, 14))  # Add PP plot in the last 2 rows, spanning both columns (row 6 and 7)
-
-# Labels and colors for the PP plot
-labels = ['CAT12', 'FSLVBM', 'FSLANAT', 'SDMA Stouffer', 'SDMA GLS']
-colors = ['#4A90E2', '#5B9BD5', '#7FBCD2',  # Shades of blue/teal
-          '#FF6F61', '#FFB6C1']  # Shades of red/pink
-
-# Plot the PP plots for all datasets on the same axis
-for i in range(5):
-    pp_ax.plot(uniform_quantiles, pmaps_flatten_sorted[i, :], label=labels[i], color=colors[i])
-
-# Plot the ideal uniform distribution (diagonal line)
-pp_ax.plot(uniform_quantiles, uniform_quantiles, linestyle='--', color='green', label='Ideal Uniform CDF')
-
-# Set PP plot labels and title
-pp_ax.set_xlabel('Theoretical Quantiles (Uniform)')
-pp_ax.set_ylabel('Empirical Quantiles (Sorted p-values)')
-pp_ax.set_title('PP Plot of p-values for All Datasets')
-pp_ax.legend()
-pp_ax.grid(True)
-
-# Adjust layout for better spacing
-plt.tight_layout()
-
-# Save the combined plot as a single image (combined_results.png)
-plt.savefig(os.path.join(figures_dir, "combined_results.png"), bbox_inches='tight', facecolor='white')
-
-# Close the plots after saving
-plt.close('all')
 
 plt.close('all')
 # Create a new figure for the QQ plot
@@ -410,7 +325,6 @@ label_pp = ["{}, {}%".format(label, numpy.round(perc_sign_list[ind], 2)) for ind
 for col, title in enumerate(label_pp):
     p_obs_p_cum = minusLog10me(pmaps_flatten_sorted[col]) - minusLog10me(p_cum)
     pp_ax.plot(minusLog10me(p_cum), p_obs_p_cum, label=title, color=colors[col])
-
 
 pp_ax.set_xlabel("-log10 cum p")
 pp_ax.set_ylabel("obs p - expt p")
@@ -427,7 +341,7 @@ plt.tick_params(
 plt.tight_layout()
 plt.savefig(os.path.join(figures_dir, "PP_plot_combined.png"))
 plt.close('all')
-
+print("PP Plot combined...DONE")
 
 f, axs = plt.subplots(1, len(labels), figsize=(len(labels)*2.5, 8), sharey=True,sharex=True) 
 for col, title in enumerate(labels):
@@ -459,3 +373,4 @@ plt.suptitle("PP plot", fontsize=20)
 plt.tight_layout()
 plt.savefig(os.path.join(figures_dir, "PP_plot.png"))
 plt.close('all')
+print("PP Plot...DONE")
