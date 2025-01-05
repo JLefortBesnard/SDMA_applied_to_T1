@@ -252,3 +252,120 @@ plt.close('all')
 
 
 
+
+# QQ and PP PLOTq
+print("Plot QQ and PP plotq...")
+pmaps_flatten = numpy.vstack([masked_p_maps_flatten, SDMA_Stouffer_pmap, SDMA_GLS_pmap])
+pmaps_flatten_sorted = numpy.sort(pmaps_flatten)
+# Generate the theoretical uniform quantiles (0 to 1)
+uniform_quantiles = numpy.linspace(0, 1, len(pmaps_flatten[0,:]))
+labels = ['CAT12', 'FSLVBM', 'FSLANAT', 'SDMA Stouffer', 'SDMA GLS']
+colors = ['#1D5FA1', '#4B8BBE', '#7A9CBB',  # Shades of blue/teal
+          '#FF6F61', '#FFB6C1']  # Shades of red/pink
+# Generate the theoretical uniform quantiles (0 to 1)
+uniform_quantiles = numpy.linspace(0, 1, len(pmaps_flatten[0, :]))
+# Labels and colors for the PP plot
+labels = ['CAT12', 'FSLVBM', 'FSLANAT', 'SDMA Stouffer', 'SDMA GLS']
+colors = ['#A9D0F5', '#4A90E2', '#003366',  # Shades of blue
+          '#FF6F61', '#FFB6C1']  # Shades of red/pink
+
+# Create a new figure for the QQ plot
+fig, pp_ax = plt.subplots(figsize=(10, 8))
+# Plot the QQ plots for all datasets on the same axis
+for i in range(5):
+    pp_ax.plot(uniform_quantiles, pmaps_flatten_sorted[i, :], label=labels[i], color=colors[i])
+# Plot the ideal uniform distribution (diagonal line)
+pp_ax.plot(uniform_quantiles, uniform_quantiles, linestyle='--', color='green', label='Ideal Uniform CDF')
+# Set QQ plot labels and title
+pp_ax.set_xlabel('Theoretical Quantiles (Uniform)')
+pp_ax.set_ylabel('Empirical Quantiles (Sorted p-values)')
+pp_ax.set_title('QQ Plot')
+pp_ax.legend()
+pp_ax.grid(True)
+# Adjust layout for better spacing
+plt.tight_layout()
+# Save the QQ plot as a separate image
+plt.savefig(os.path.join(figures_dir, "QQ_plot.png"), bbox_inches='tight', facecolor='white')
+# Close the plot after saving
+plt.close('all')
+print("QQ Plot saved...DONE")
+
+# Create a new figure for the PP plot
+
+def distribution_inversed(J):
+    distribution_inversed = []
+    for i in range(J):
+        distribution_inversed.append(i/(J+1))
+    return distribution_inversed     
+
+
+def minusLog10me(values):
+    # prevent log10(0)
+    return numpy.array([-numpy.log10(i) if i != 0 else 5 for i in values])
+plt.close('all')
+J = pmaps_flatten.shape[1]
+K = pmaps_flatten.shape[0]
+pmaps_flatten_sorted
+p_cum = distribution_inversed(J)
+x_lim_pplot =  6 #-numpy.log10(1/J) + 5
+
+
+
+plt.close('all')
+# Create a new figure for the QQ plot
+fig, pp_ax = plt.subplots(figsize=(10, 8))
+
+label_pp = ["{}, {}%".format(label, numpy.round(perc_sign_list[ind], 2)) for ind, label in enumerate(labels)]
+
+for col, title in enumerate(label_pp):
+    p_obs_p_cum = minusLog10me(pmaps_flatten_sorted[col]) - minusLog10me(p_cum)
+    pp_ax.plot(minusLog10me(p_cum), p_obs_p_cum, label=title, color=colors[col])
+
+
+pp_ax.set_xlabel("-log10 cum p")
+pp_ax.set_ylabel("obs p - expt p")
+pp_ax.axvline(-numpy.log10(0.05), ymin=-1, color='black', linewidth=0.5, linestyle='--')
+pp_ax.axhline(0, color='black', linewidth=0.5, linestyle='--')
+pp_ax.set_xlim(0, x_lim_pplot)
+pp_ax.set_ylim(-0.25, 22)
+pp_ax.set_title('PP Plots')
+pp_ax.legend()
+plt.tick_params(
+    axis='x',          # changes apply to the x-axis
+    which='both',      # both major and minor ticks are affected
+    bottom=False)     # ticks along the bottom edge are off) 
+plt.tight_layout()
+plt.savefig(os.path.join(figures_dir, "PP_plot_combined.png"))
+plt.close('all')
+
+
+f, axs = plt.subplots(1, len(labels), figsize=(len(labels)*2.5, 8), sharey=True,sharex=True) 
+for col, title in enumerate(labels):
+    p_obs_p_cum = minusLog10me(pmaps_flatten_sorted[col]) - minusLog10me(p_cum)
+
+    axs[col].title.set_text(title)
+    axs[col].title.set_fontsize(15)
+    axs[col].set_xlabel("-log10 cum p", fontsize=15)
+    axs[col].plot(minusLog10me(p_cum), p_obs_p_cum, color='y')
+    if col == 0:
+        axs[col].set_ylabel("obs p - expt p", fontsize=15)
+    else:
+        axs[col].set_ylabel("")
+    axs[col].axvline(-numpy.log10(0.05), ymin=-1, color='black', linewidth=0.5, linestyle='--')
+    axs[col].axhline(0, color='black', linewidth=0.5, linestyle='--')
+
+    axs[col].set_xlim(0, x_lim_pplot)
+    axs[col].set_ylim(-0.25, 22)
+    color= 'blue'
+    axs[col].text(2.5, 0.7, '{}%'.format(numpy.round(perc_sign_list[col], 2)), color=color, fontsize=9)
+
+    plt.tick_params(
+        axis='x',          # changes apply to the x-axis
+        which='both',      # both major and minor ticks are affected
+        bottom=False)     # ticks along the bottom edge are off) 
+
+# plt.savefig("{}/pp_plot_OHBM_ABSTRACT.png".format(results_dir))
+plt.suptitle("PP plot", fontsize=20)
+plt.tight_layout()
+plt.savefig(os.path.join(figures_dir, "PP_plot.png"))
+plt.close('all')
