@@ -65,7 +65,6 @@ nibabel.save(multiverse_outputs_mask, os.path.join(data_dir, "masking", "multive
 masker = NiftiMasker(
     mask_img=multiverse_outputs_mask)
 print("Computing mask... DONE")
-
 #######
 # RESAMPLE RAW DATA WITH MASK
 #######
@@ -110,6 +109,7 @@ FSLANAT_percentage_significance = len(masked_significant_p_maps_flatten[2][maske
 #######
 # PLOT CORRELATION MATRICES
 #######
+
 print("Plot correlation matrix...")
 def plot_corr_matrix(data, names, title, saving_path):
 	Q = numpy.corrcoef(data)
@@ -218,7 +218,103 @@ print("Save data... DONE")
 
 print("Plot combined results...")
 # Create a figure for plotting with 5 rows and 2 columns
-fig, axes = plt.subplots(5, 2, figsize=(10, 7))
+fig, axes = plt.subplots(5, 2, figsize=(18, 12))
+# Loop through each map and plot
+for i in range(len(map_list_column_1)):
+    # Plot the first column map
+    plotting.plot_stat_map(
+        map_list_column_1[i],
+        annotate=False,
+        # bg_img=None,  # Set background to None for a white background
+        vmin=-8,
+        vmax=8,
+        cut_coords=(-34, -21, -13, -7, -1, 7, 20),
+        colorbar=True,
+        display_mode='z',
+        cmap='coolwarm',
+        axes=axes[i, 0]  # Specify the axes for the first column
+    )
+    # Set the title for the first column
+    axes[i, 0].set_title(map_names[i])
+
+    # Plot the second column map
+    plotting.plot_stat_map(
+        map_list_column_2[i],
+        annotate=False,
+        # bg_img=None,  # Set background to None for a white background
+        vmin=-8,
+        vmax=8,
+        cut_coords=(-34, -21, -13, -7, -1, 7, 20),
+        colorbar=True,
+        display_mode='z',
+        cmap='coolwarm',
+        axes=axes[i, 1]  # Specify the axes for the second column
+    )
+    # Set the title for the second column
+    axes[i, 1].set_title(map_names[i] + " {}%".format(numpy.round(perc_sign_list[i], 2)))
+
+# Save the combined plot as a single image
+plt.savefig(os.path.join(figures_dir, "combined_results.png"), bbox_inches='tight', facecolor='white')
+# Show the plots
+plt.close('all')
+print("Plot combined results...DONE")
+
+print("Plot PP plot...")
+pmaps_flatten = numpy.vstack([masked_p_maps_flatten, SDMA_Stouffer_pmap, SDMA_GLS_pmap])
+pmaps_flatten_sorted = numpy.sort(pmaps_flatten)
+# Generate the theoretical uniform quantiles (0 to 1)
+uniform_quantiles = numpy.linspace(0, 1, len(pmaps_flatten[0,:]))
+labels = ['CAT12', 'FSLVBM', 'FSLANAT', 'SDMA Stouffer', 'SDMA GLS']
+colors = ['#1D5FA1', '#4B8BBE', '#7A9CBB',  # Shades of blue/teal
+          '#FF6F61', '#FFB6C1']  # Shades of red/pink
+# Generate the theoretical uniform quantiles (0 to 1)
+uniform_quantiles = numpy.linspace(0, 1, len(pmaps_flatten[0, :]))
+
+# Labels and colors for the PP plot
+labels = ['CAT12', 'FSLVBM', 'FSLANAT', 'SDMA Stouffer', 'SDMA GLS']
+colors = ['#A9D0F5', '#4A90E2', '#003366',  # Shades of blue
+          '#FF6F61', '#FFB6C1']  # Shades of red/pink
+
+# Create a new figure for the PP plot
+fig, pp_ax = plt.subplots(figsize=(10, 8))
+
+# Plot the PP plots for all datasets on the same axis
+for i in range(5):
+    pp_ax.plot(uniform_quantiles, pmaps_flatten_sorted[i, :], label=labels[i], color=colors[i])
+
+# Plot the ideal uniform distribution (diagonal line)
+pp_ax.plot(uniform_quantiles, uniform_quantiles, linestyle='--', color='green', label='Ideal Uniform CDF')
+
+# Set PP plot labels and title
+pp_ax.set_xlabel('Theoretical Quantiles (Uniform)')
+pp_ax.set_ylabel('Empirical Quantiles (Sorted p-values)')
+pp_ax.set_title('PP Plot')
+pp_ax.legend()
+pp_ax.grid(True)
+# Adjust layout for better spacing
+plt.tight_layout()
+
+# Save the PP plot as a separate image
+plt.savefig(os.path.join(figures_dir, "pp_plot.png"), bbox_inches='tight', facecolor='white')
+# Close the plot after saving
+plt.close('all')
+print("PP Plot saved...DONE")
+
+
+
+
+
+
+
+
+
+
+print("Plot results...")
+
+
+# Create a figure for plotting with 5 rows and 3 columns
+fig, axes = plt.subplots(5, 3, figsize=(15, 10))  # Adjust the figsize as needed
+
 # Loop through each map and plot
 for i in range(len(map_list_column_1)):
     # Plot the first column map
@@ -253,131 +349,121 @@ for i in range(len(map_list_column_1)):
     # Set the title for the second column
     axes[i, 1].set_title(map_names[i] + " {}%".format(numpy.round(perc_sign_list[i], 2)))
 
-# Save the combined plot as a single image
-plt.savefig(os.path.join(figures_dir, "combined_results.png"), bbox_inches='tight', facecolor='white')
-
-# Show the plots
-plt.close('all')
-print("Plot combined results...DONE")
-
-
-
-# QQ and PP PLOTq
-print("Plot QQ and PP plotq...")
+# add pp plot to figure
 pmaps_flatten = numpy.vstack([masked_p_maps_flatten, SDMA_Stouffer_pmap, SDMA_GLS_pmap])
 pmaps_flatten_sorted = numpy.sort(pmaps_flatten)
 # Generate the theoretical uniform quantiles (0 to 1)
 uniform_quantiles = numpy.linspace(0, 1, len(pmaps_flatten[0,:]))
 labels = ['CAT12', 'FSLVBM', 'FSLANAT', 'SDMA Stouffer', 'SDMA GLS']
-colors = ['#1D5FA1', '#4B8BBE', '#7A9CBB',  # Shades of blue/teal
-          '#FF6F61', '#FFB6C1']  # Shades of red/pink
-# Generate the theoretical uniform quantiles (0 to 1)
-uniform_quantiles = numpy.linspace(0, 1, len(pmaps_flatten[0, :]))
-# Labels and colors for the PP plot
-labels = ['CAT12', 'FSLVBM', 'FSLANAT', 'SDMA Stouffer', 'SDMA GLS']
-colors = ['#A9D0F5', '#4A90E2', '#003366',  # Shades of blue
+colors = ['#4A90E2', '#5B9BD5', '#7FBCD2',  # Shades of blue/teal
           '#FF6F61', '#FFB6C1']  # Shades of red/pink
 
-# Create a new figure for the QQ plot
-fig, pp_ax = plt.subplots(figsize=(10, 8))
-# Plot the QQ plots for all datasets on the same axis
+# Create PP plot
+pp_ax = fig.add_subplot(5, 2, (5, 5))  # Add PP plot in the last subplot (bottom row, second column)
+# Plot the PP plots for all datasets on the same axis
 for i in range(5):
     pp_ax.plot(uniform_quantiles, pmaps_flatten_sorted[i, :], label=labels[i], color=colors[i])
+
 # Plot the ideal uniform distribution (diagonal line)
 pp_ax.plot(uniform_quantiles, uniform_quantiles, linestyle='--', color='green', label='Ideal Uniform CDF')
-# Set QQ plot labels and title
+
+# Set PP plot labels and title
 pp_ax.set_xlabel('Theoretical Quantiles (Uniform)')
 pp_ax.set_ylabel('Empirical Quantiles (Sorted p-values)')
-pp_ax.set_title('QQ Plot')
+pp_ax.set_title('PP Plot of p-values for All Datasets')
 pp_ax.legend()
 pp_ax.grid(True)
+
 # Adjust layout for better spacing
 plt.tight_layout()
-# Save the QQ plot as a separate image
-plt.savefig(os.path.join(figures_dir, "QQ_plot.png"), bbox_inches='tight', facecolor='white')
-# Close the plot after saving
+
+# Save the combined plot as a single image (combined_results.png)
+plt.savefig(os.path.join(figures_dir, "combined_results.png"), bbox_inches='tight', facecolor='white')
+
+# Close the plots after saving
 plt.close('all')
-print("QQ Plot saved...DONE")
 
-# Create a new figure for the PP plot
-
-def distribution_inversed(J):
-    distribution_inversed = []
-    for i in range(J):
-        distribution_inversed.append(i/(J+1))
-    return distribution_inversed     
+print("Plot results...DONE")
 
 
-def minusLog10me(values):
-    # prevent log10(0)
-    return numpy.array([-numpy.log10(i) if i != 0 else 5 for i in values])
+import numpy as np
+import os
+import matplotlib.pyplot as plt
+import scipy.stats as stats
+from nilearn import plotting
 
+# Assuming `map_list_column_1`, `map_list_column_2`, `map_names`, etc., are already defined
+# Also assuming your `figures_dir` variable is set to the correct path
 
+# Create a figure for plotting with 7 rows and 2 columns
+fig, axes = plt.subplots(7, 2, figsize=(10, 14))  # Adjust figsize for the new layout
 
-plt.close('all')
-J = pmaps_flatten.shape[1]
-K = pmaps_flatten.shape[0]
-pmaps_flatten_sorted
-p_cum = distribution_inversed(J)
-x_lim_pplot =  5 #-numpy.log10(1/J)
+# Loop through each map and plot the first 5 rows and 2 columns (statistical maps)
+for i in range(len(map_list_column_1)):
+    # Plot the first column map (for the first 5 rows)
+    plotting.plot_stat_map(
+        map_list_column_1[i],
+        annotate=False,
+        vmin=0.00000000000001,
+        vmax=5,
+        cut_coords=(-34, -21, -13, -7, -1, 7, 20),
+        colorbar=True,
+        display_mode='z',
+        cmap='Reds',
+        axes=axes[i, 0]  # Specify the axes for the first column
+    )
+    axes[i, 0].set_title(map_names[i])
 
+    # Plot the second column map (for the first 5 rows)
+    plotting.plot_stat_map(
+        map_list_column_2[i],
+        annotate=False,
+        vmin=0.00000000000001,
+        vmax=5,
+        cut_coords=(-34, -21, -13, -7, -1, 7, 20),
+        colorbar=True,
+        display_mode='z',
+        cmap='Reds',
+        axes=axes[i, 1]  # Specify the axes for the second column
+    )
+    axes[i, 1].set_title(map_names[i] + " {}%".format(np.round(perc_sign_list[i], 2)))
 
+# PP Plot in the last 2 rows (6th and 7th rows) spanning both columns
+# Generate the theoretical uniform quantiles (0 to 1)
+uniform_quantiles = np.linspace(0, 1, len(pmaps_flatten[0, :]))
 
-plt.close('all')
-# Create a new figure for the QQ plot
-fig, pp_ax = plt.subplots(figsize=(10, 8))
+# Create PP plot in the axes that span the last two rows and two columns
+pp_ax = fig.add_subplot(7, 2, (12, 14))  # Add PP plot in the last 2 rows, spanning both columns (row 6 and 7)
 
-label_pp = ["{}, {}%".format(label, numpy.round(perc_sign_list[ind], 2)) for ind, label in enumerate(labels)]
+# Labels and colors for the PP plot
+labels = ['CAT12', 'FSLVBM', 'FSLANAT', 'SDMA Stouffer', 'SDMA GLS']
+colors = ['#4A90E2', '#5B9BD5', '#7FBCD2',  # Shades of blue/teal
+          '#FF6F61', '#FFB6C1']  # Shades of red/pink
 
-for col, title in enumerate(label_pp):
-    p_obs_p_cum = minusLog10me(pmaps_flatten_sorted[col]) - minusLog10me(p_cum)
-    pp_ax.plot(minusLog10me(p_cum), p_obs_p_cum, label=title, color=colors[col])
+# Plot the PP plots for all datasets on the same axis
+for i in range(5):
+    pp_ax.plot(uniform_quantiles, pmaps_flatten_sorted[i, :], label=labels[i], color=colors[i])
 
+# Plot the ideal uniform distribution (diagonal line)
+pp_ax.plot(uniform_quantiles, uniform_quantiles, linestyle='--', color='green', label='Ideal Uniform CDF')
 
-pp_ax.set_xlabel("-log10 cum p")
-pp_ax.set_ylabel("obs p - expt p")
-pp_ax.axvline(-numpy.log10(0.05), ymin=-1, color='black', linewidth=0.5, linestyle='--')
-pp_ax.axhline(0, color='black', linewidth=0.5, linestyle='--')
-pp_ax.set_xlim(0, x_lim_pplot)
-pp_ax.set_ylim(-0.25, 22)
-pp_ax.set_title('PP Plots')
+# Set PP plot labels and title
+pp_ax.set_xlabel('Theoretical Quantiles (Uniform)')
+pp_ax.set_ylabel('Empirical Quantiles (Sorted p-values)')
+pp_ax.set_title('PP Plot of p-values for All Datasets')
 pp_ax.legend()
-plt.tick_params(
-    axis='x',          # changes apply to the x-axis
-    which='both',      # both major and minor ticks are affected
-    bottom=False)     # ticks along the bottom edge are off) 
+pp_ax.grid(True)
+
+# Adjust layout for better spacing
 plt.tight_layout()
-plt.savefig(os.path.join(figures_dir, "PP_plot_combined.png"))
+
+# Save the combined plot as a single image (combined_results.png)
+plt.savefig(os.path.join(figures_dir, "combined_results.png"), bbox_inches='tight', facecolor='white')
+
+# Close the plots after saving
 plt.close('all')
 
+print("Plot results...DONE")
 
-f, axs = plt.subplots(1, len(labels), figsize=(len(labels)*2.5, 8), sharey=True,sharex=True) 
-for col, title in enumerate(labels):
-    p_obs_p_cum = minusLog10me(pmaps_flatten_sorted[col]) - minusLog10me(p_cum)
-
-    axs[col].title.set_text(title)
-    axs[col].title.set_fontsize(15)
-    axs[col].set_xlabel("-log10 cum p", fontsize=15)
-    axs[col].plot(minusLog10me(p_cum), p_obs_p_cum, color='y')
-    if col == 0:
-        axs[col].set_ylabel("obs p - expt p", fontsize=15)
-    else:
-        axs[col].set_ylabel("")
-    axs[col].axvline(-numpy.log10(0.05), ymin=-1, color='black', linewidth=0.5, linestyle='--')
-    axs[col].axhline(0, color='black', linewidth=0.5, linestyle='--')
-
-    axs[col].set_xlim(0, x_lim_pplot)
-    axs[col].set_ylim(-0.25, 22)
-    color= 'blue'
-    axs[col].text(2.5, 0.7, '{}%'.format(numpy.round(perc_sign_list[col], 2)), color=color, fontsize=9)
-
-    plt.tick_params(
-        axis='x',          # changes apply to the x-axis
-        which='both',      # both major and minor ticks are affected
-        bottom=False)     # ticks along the bottom edge are off) 
-
-# plt.savefig("{}/pp_plot_OHBM_ABSTRACT.png".format(results_dir))
-plt.suptitle("PP plot", fontsize=20)
-plt.tight_layout()
-plt.savefig(os.path.join(figures_dir, "PP_plot.png"))
-plt.close('all')
+# Optionally, display the plot
+plt.show()
