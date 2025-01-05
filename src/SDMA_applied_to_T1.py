@@ -302,12 +302,15 @@ def distribution_inversed(J):
 def minusLog10me(values):
     # prevent log10(0)
     return numpy.array([-numpy.log10(i) if i != 0 else 5 for i in values])
+
+
+
 plt.close('all')
 J = pmaps_flatten.shape[1]
 K = pmaps_flatten.shape[0]
 pmaps_flatten_sorted
 p_cum = distribution_inversed(J)
-x_lim_pplot =  6 #-numpy.log10(1/J) + 5
+x_lim_pplot =  5 #-numpy.log10(1/J)
 
 
 
